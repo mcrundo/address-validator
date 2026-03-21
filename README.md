@@ -45,6 +45,7 @@ POST /validate
 ## Prerequisites
 
 - Python 3.12
+- Docker (for local invocation)
 - [Terraform CLI](https://developer.hashicorp.com/terraform/install)
 - AWS account with credentials configured
 
@@ -68,6 +69,22 @@ ruff check src tests        # lint
 ruff format --check src tests  # format check
 mypy                        # type check
 pytest                      # tests
+```
+
+## Local invocation
+
+Run the Lambda locally using the AWS Lambda Runtime Interface Emulator:
+
+```sh
+cp .env.example .env  # add your API key
+docker compose up --build
+```
+
+Then invoke:
+
+```sh
+curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" \
+  -d '{"body": "{\"address\": {\"lines\": [\"1600 Amphitheatre Parkway\"], \"city\": \"Mountain View\", \"state\": \"CA\", \"postal_code\": \"94043\", \"country\": \"US\"}}"}'
 ```
 
 ## Infrastructure
