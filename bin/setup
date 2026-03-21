@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+echo "==> Creating virtual environment..."
+python3.12 -m venv .venv
+
+echo "==> Installing dependencies..."
+.venv/bin/pip install --quiet --upgrade pip
+.venv/bin/pip install --quiet -e ".[dev]"
+
+echo "==> Installing pre-commit hooks..."
+.venv/bin/pre-commit install
+
+echo ""
+echo "Done! Activate with: source .venv/bin/activate"
