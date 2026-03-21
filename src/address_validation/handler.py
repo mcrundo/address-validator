@@ -29,7 +29,10 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         if address_data is None:
             raise InvalidInputError("Missing required field: address")
 
-        address_input = AddressInput.from_dict(address_data)
+        try:
+            address_input = AddressInput.from_dict(address_data)
+        except ValueError as exc:
+            raise InvalidInputError(str(exc)) from exc
         google_response = validate_address(address_input, api_key=api_key)
         normalized = parse_response(google_response)
 
