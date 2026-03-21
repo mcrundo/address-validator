@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+echo "==> Ruff lint..."
+.venv/bin/ruff check src tests
+
+echo "==> Ruff format check..."
+.venv/bin/ruff format --check src tests
+
+echo "==> Mypy..."
+.venv/bin/mypy
+
+echo "==> Pytest..."
+.venv/bin/pytest --cov=address_validation --cov-report=term-missing
+
+echo ""
+echo "All checks passed."
