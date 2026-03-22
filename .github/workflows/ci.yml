@@ -13,7 +13,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-2
-  TERRAFORM_VERSION: "1.9"
+  TERRAFORM_VERSION: "1.5"
   PYTHON_VERSION: "3.12"
 
 jobs:
