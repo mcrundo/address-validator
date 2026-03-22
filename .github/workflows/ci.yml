@@ -8,9 +8,17 @@ on:
 
 permissions:
   contents: read
+  id-token: write
+  pull-requests: write
+
+env:
+  AWS_REGION: us-east-2
+  TERRAFORM_VERSION: "1.9"
+  PYTHON_VERSION: "3.12"
 
 jobs:
   check:
+    name: Lint / Type-check / Test
     runs-on: ubuntu-latest
 
     steps:
@@ -18,7 +26,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
         run: |
@@ -38,6 +46,7 @@ jobs:
         run: pytest --cov=address_validation --cov-report=term-missing
 
   terraform-validate:
+    name: Terraform validate
     runs-on: ubuntu-latest
 
     defaults:
@@ -49,7 +58,7 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "1.9"
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
 
       - name: Terraform fmt
         run: terraform fmt -check -recursive
@@ -59,3 +68,60 @@ jobs:
 
       - name: Terraform validate
         run: terraform validate
+
+  terraform-plan:
+    name: Terraform plan
+    if: github.event_name == 'pull_request'
+    needs: [check, terraform-validate]
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform plan
+        id: plan
+        run: terraform plan -no-color -out=tfplan
+        continue-on-error: true
+
+      - name: Comment plan on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`terraform
+            ${{ steps.plan.outputs.stdout }}
+            \`\`\`
+
+            </details>
+
+            *Triggered by @${{ github.actor }} in commit ${{ github.sha }}*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output,
+            });
+
+      - name: Fail if plan failed
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
