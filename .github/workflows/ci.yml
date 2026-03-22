@@ -13,7 +13,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-2
-  TERRAFORM_VERSION: "1.9"
+  TERRAFORM_VERSION: "1.5"
   PYTHON_VERSION: "3.12"
 
 jobs:
@@ -56,6 +56,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create placeholder lambda.zip
+        run: echo "placeholder" | zip -q ../lambda.zip -
+        working-directory: terraform
+
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
@@ -81,6 +85,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Create placeholder lambda.zip
+        run: echo "placeholder" | zip -q ../lambda.zip -
 
       - uses: aws-actions/configure-aws-credentials@v4
         with:
