@@ -37,13 +37,14 @@ Full OpenAPI 3.1 spec: [`docs/openapi.yaml`](docs/openapi.yaml)
 
 ### `POST /validate`
 
-Validate and normalize an address.
+Validate and normalize an address. Requires an `x-api-key` header.
 
 **Request:**
 
 ```sh
 curl -X POST https://<api-id>.execute-api.us-east-2.amazonaws.com/validate \
   -H "Content-Type: application/json" \
+  -H "x-api-key: <your-api-key>" \
   -d '{
     "address": {
       "lines": ["1600 Amphitheatre Parkway"],
@@ -65,6 +66,14 @@ curl -X POST https://<api-id>.execute-api.us-east-2.amazonaws.com/validate \
   "state": "CA",
   "postal_code": "94043-1351",
   "country": "US"
+}
+```
+
+**Error (403 — missing or invalid API key):**
+
+```json
+{
+  "message": "Forbidden"
 }
 ```
 
