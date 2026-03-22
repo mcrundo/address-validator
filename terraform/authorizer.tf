@@ -42,6 +42,10 @@ resource "aws_lambda_function" "authorizer" {
     }
   }
 
+  lifecycle {
+    ignore_changes = [environment]
+  }
+
   depends_on = [aws_cloudwatch_log_group.authorizer]
 }
 
