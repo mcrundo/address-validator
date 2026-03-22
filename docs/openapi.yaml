@@ -1,0 +1,175 @@
+openapi: "3.1.0"
+info:
+  title: Address Validation Service
+  description: |
+    Validates and normalizes postal addresses using the Google Maps Address Validation API.
+    Deployed as an AWS Lambda function behind API Gateway.
+  version: "0.1.0"
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: https://{api_id}.execute-api.us-east-2.amazonaws.com
+    description: AWS API Gateway
+    variables:
+      api_id:
+        default: placeholder
+        description: API Gateway ID (set after deployment)
+
+paths:
+  /validate:
+    post:
+      summary: Validate and normalize an address
+      description: |
+        Accepts a raw address, validates it against the Google Maps Address Validation API,
+        and returns a normalized, structured address.
+      operationId: validateAddress
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ValidateRequest"
+            example:
+              address:
+                lines:
+                  - "1600 Amphitheatre Parkway"
+                city: "Mountain View"
+                state: "CA"
+                postal_code: "94043"
+                country: "US"
+      responses:
+        "200":
+          description: Address validated and normalized successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NormalizedAddress"
+              example:
+                line1: "1600 Amphitheatre Pkwy"
+                line2: null
+                city: "Mountain View"
+                state: "CA"
+                postal_code: "94043-1351"
+                country: "US"
+        "400":
+          description: Invalid request (missing or malformed input)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                missing_address:
+                  summary: Missing address field
+                  value:
+                    error: "Missing required field: address"
+                missing_lines:
+                  summary: Missing address lines
+                  value:
+                    error: "address.lines must be a non-empty array of strings"
+                invalid_json:
+                  summary: Malformed JSON body
+                  value:
+                    error: "Request body is not valid JSON"
+        "502":
+          description: Upstream Google Maps API error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              examples:
+                timeout:
+                  summary: API timeout
+                  value:
+                    error: "Google Maps API request timed out"
+                permission_denied:
+                  summary: Invalid API key
+                  value:
+                    error: "Google Maps API returned 403: Permission denied"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Internal server error"
+
+components:
+  schemas:
+    ValidateRequest:
+      type: object
+      required:
+        - address
+      properties:
+        address:
+          $ref: "#/components/schemas/AddressInput"
+
+    AddressInput:
+      type: object
+      required:
+        - lines
+      properties:
+        lines:
+          type: array
+          items:
+            type: string
+          minItems: 1
+          description: Street address lines (e.g. ["350 5th Ave", "Ste 3301"])
+        city:
+          type: string
+          description: City or locality
+          default: ""
+        state:
+          type: string
+          description: State or administrative area
+          default: ""
+        postal_code:
+          type: string
+          description: ZIP or postal code
+          default: ""
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country code
+          default: "US"
+
+    NormalizedAddress:
+      type: object
+      required:
+        - line1
+        - line2
+        - city
+        - state
+        - postal_code
+        - country
+      properties:
+        line1:
+          type: string
+          description: Primary street address line
+        line2:
+          type:
+            - string
+            - "null"
+          description: Secondary address line (unit, suite, etc.) or null
+        city:
+          type: string
+          description: City or locality
+        state:
+          type: string
+          description: State or administrative area abbreviation
+        postal_code:
+          type: string
+          description: ZIP or postal code (may include +4 extension)
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2 country code
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
