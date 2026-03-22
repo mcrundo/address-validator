@@ -62,13 +62,25 @@ jobs:
       # ── Smoke Test ──────────────────────────────────────────────────
       - name: Get API URL
         id: api_url
-        run: echo "url=$(terraform output -raw api_gateway_url)" >> "$GITHUB_OUTPUT"
+        run: |
+          RAW_URL=$(terraform output -raw api_gateway_url)
+          echo "url=${RAW_URL%/}" >> "$GITHUB_OUTPUT"
+
+      - name: Get API key
+        id: api_key
+        run: |
+          KEY=$(aws secretsmanager get-secret-value \
+            --secret-id address-validation/dev/api-key \
+            --query SecretString --output text)
+          echo "::add-mask::$KEY"
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"
 
       - name: Smoke test
         working-directory: .
         run: |
           RESPONSE=$(curl -sf -X POST "${{ steps.api_url.outputs.url }}/validate" \
             -H "Content-Type: application/json" \
+            -H "x-api-key: ${{ steps.api_key.outputs.key }}" \
             -d '{
               "address": {
                 "lines": ["1600 Amphitheatre Parkway"],
@@ -81,7 +93,6 @@ jobs:
 
           echo "Response: $RESPONSE"
 
-          # Verify we got a successful response with expected fields
           echo "$RESPONSE" | python -c "
           import json, sys
           data = json.load(sys.stdin)
