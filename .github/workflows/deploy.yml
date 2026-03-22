@@ -1,0 +1,92 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: us-east-2
+  TERRAFORM_VERSION: "1.9"
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  deploy:
+    name: Package & Deploy
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+
+      # ── Package Lambda ──────────────────────────────────────────────
+      - name: Package Lambda
+        working-directory: .
+        run: |
+          mkdir -p build
+          pip install --target build/package -r requirements.lock --quiet
+          cp -r src/address_validation build/package/
+          cd build/package && zip -r ../../lambda.zip . -x '*.pyc' '__pycache__/*'
+
+      # ── Terraform Apply ─────────────────────────────────────────────
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform apply
+        run: terraform apply -auto-approve
+
+      # ── Smoke Test ──────────────────────────────────────────────────
+      - name: Get API URL
+        id: api_url
+        run: echo "url=$(terraform output -raw api_gateway_url)" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test
+        working-directory: .
+        run: |
+          RESPONSE=$(curl -sf -X POST "${{ steps.api_url.outputs.url }}/validate" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "address": {
+                "lines": ["1600 Amphitheatre Parkway"],
+                "city": "Mountain View",
+                "state": "CA",
+                "postal_code": "94043",
+                "country": "US"
+              }
+            }')
+
+          echo "Response: $RESPONSE"
+
+          # Verify we got a successful response with expected fields
+          echo "$RESPONSE" | python -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          assert 'line1' in data, f'Missing line1 in response: {data}'
+          assert 'city' in data, f'Missing city in response: {data}'
+          assert data['country'] == 'US', f'Unexpected country: {data}'
+          print('Smoke test passed.')
+          "
