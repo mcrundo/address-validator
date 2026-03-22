@@ -17,6 +17,10 @@ resource "aws_lambda_function" "handler" {
     }
   }
 
+  lifecycle {
+    ignore_changes = [environment]
+  }
+
   depends_on = [aws_cloudwatch_log_group.handler]
 }
 
