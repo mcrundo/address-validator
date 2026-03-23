@@ -15,6 +15,9 @@ flowchart LR
 
     E[Secrets Manager] -.->|API key| C
     C -.->|logs| F[CloudWatch]
+    C -.->|traces| G[X-Ray]
+    C -.->|failures| H[SQS DLQ]
+    F -.->|alarms| I[SNS]
 ```
 
 ```
@@ -26,14 +29,29 @@ Rails App (AddressValidationJob)
                  └─ Returns normalized address fields
 
 Supporting services:
-  ├─ Secrets Manager → Google Maps API key
-  ├─ CloudWatch → Lambda logs
+  ├─ Secrets Manager → Google Maps API key + service API key
+  ├─ CloudWatch → Lambda logs + alarms (errors, latency, throttles)
+  ├─ X-Ray → request tracing
+  ├─ SQS → dead letter queue for failed invocations
+  ├─ SNS → alarm notifications (optional)
   └─ IAM → least-privilege execution role
 ```
 
 ## API
 
 Full OpenAPI 3.1 spec: [`docs/openapi.yaml`](docs/openapi.yaml)
+
+### `GET /health`
+
+Health check — no auth required, no external calls.
+
+```sh
+curl https://<api-id>.execute-api.us-east-2.amazonaws.com/health
+```
+
+```json
+{"status": "ok"}
+```
 
 ### `POST /validate`
 
@@ -157,11 +175,14 @@ See [`terraform/`](terraform/) for the AWS infrastructure:
 
 | Resource | Purpose |
 |----------|---------|
-| Lambda | Python 3.12 function running the handler |
-| API Gateway | HTTP API with `POST /validate` route |
+| Lambda (x3) | Handler, authorizer, and health check functions |
+| API Gateway | HTTP API with `POST /validate` and `GET /health` routes |
 | IAM | Least-privilege execution role |
-| Secrets Manager | Google Maps API key (value set out-of-band) |
-| CloudWatch | Lambda log group with retention policy |
+| Secrets Manager | Google Maps API key + service API key (values set out-of-band) |
+| CloudWatch | Log groups + alarms (errors, latency, throttles, DLQ depth) |
+| SQS | Dead letter queue for failed handler invocations (14-day retention) |
+| X-Ray | Active tracing on all Lambda functions |
+| SNS | Alarm notifications (optional — set `alarm_email` variable) |
 
 ### Deployment
 
@@ -172,6 +193,52 @@ Merges to `main` trigger automated deployment via [GitHub Actions](.github/workf
 3. Smoke test against the live endpoint
 
 PRs run `terraform plan` and post the output as a comment.
+
+### First-time setup
+
+1. **Create the Terraform state bucket:**
+   ```sh
+   aws s3 mb s3://address-validation-tf-state --region us-east-2 --profile aws
+   aws s3api put-bucket-versioning --bucket address-validation-tf-state \
+     --versioning-configuration Status=Enabled --region us-east-2 --profile aws
+   ```
+
+2. **Set secrets after first deploy:**
+   ```sh
+   # Google Maps API key
+   aws secretsmanager put-secret-value \
+     --secret-id address-validation/dev/google-maps-api-key \
+     --secret-string "<your-google-maps-api-key>" \
+     --region us-east-2 --profile aws
+
+   # Service API key (for x-api-key header)
+   aws secretsmanager put-secret-value \
+     --secret-id address-validation/dev/api-key \
+     --secret-string "$(openssl rand -hex 32)" \
+     --region us-east-2 --profile aws
+   ```
+
+3. **Set Lambda environment variables:**
+   ```sh
+   # Handler
+   aws lambda update-function-configuration \
+     --function-name address-validation-handler-dev \
+     --environment "Variables={GOOGLE_MAPS_API_KEY=<key>,LOG_LEVEL=INFO}" \
+     --region us-east-2 --profile aws
+
+   # Authorizer
+   aws lambda update-function-configuration \
+     --function-name address-validation-authorizer-dev \
+     --environment "Variables={API_KEY=<key>,LOG_LEVEL=INFO}" \
+     --region us-east-2 --profile aws
+   ```
+
+### Monitoring
+
+- **CloudWatch Alarms**: error rate, p99 latency, throttles, DLQ depth
+- **X-Ray**: request tracing (AWS Console → X-Ray → Traces)
+- **Dead Letter Queue**: failed invocations retained for 14 days
+- **Alarm notifications**: set `alarm_email` Terraform variable to receive email alerts
 
 ## License
 
