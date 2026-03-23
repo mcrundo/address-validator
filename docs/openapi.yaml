@@ -18,6 +18,25 @@ servers:
         description: API Gateway ID (set after deployment)
 
 paths:
+  /health:
+    get:
+      summary: Health check
+      description: Returns 200 OK if the service is running. No auth required, no external calls.
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: ["ok"]
+              example:
+                status: "ok"
+
   /validate:
     post:
       summary: Validate and normalize an address

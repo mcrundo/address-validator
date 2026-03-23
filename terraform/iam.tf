@@ -24,6 +24,7 @@ data "aws_iam_policy_document" "lambda_logs" {
     resources = [
       "${aws_cloudwatch_log_group.handler.arn}:*",
       "${aws_cloudwatch_log_group.authorizer.arn}:*",
+      "${aws_cloudwatch_log_group.health.arn}:*",
     ]
   }
 }

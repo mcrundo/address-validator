@@ -36,3 +36,35 @@ resource "aws_lambda_permission" "api_gateway_handler" {
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*"
 }
+
+# ── Health Check Lambda ───────────────────────────────────────────────
+resource "aws_lambda_function" "health" {
+  function_name = "address-validation-health-${var.environment}"
+  role          = aws_iam_role.lambda_exec.arn
+  runtime       = "python3.12"
+  handler       = "address_validation.health.handler"
+  timeout       = 5
+  memory_size   = 128
+
+  filename         = "${path.module}/../lambda.zip"
+  source_code_hash = filebase64sha256("${path.module}/../lambda.zip")
+
+  tracing_config {
+    mode = "Active"
+  }
+
+  depends_on = [aws_cloudwatch_log_group.health]
+}
+
+resource "aws_cloudwatch_log_group" "health" {
+  name              = "/aws/lambda/address-validation-health-${var.environment}"
+  retention_in_days = 7
+}
+
+resource "aws_lambda_permission" "api_gateway_health" {
+  statement_id  = "AllowAPIGatewayInvokeHealth"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.health.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.this.execution_arn}/*"
+}
