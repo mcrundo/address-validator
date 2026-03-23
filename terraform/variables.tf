@@ -9,3 +9,9 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
+
+variable "alarm_email" {
+  description = "Email address for CloudWatch alarm notifications (leave empty to skip SNS)"
+  type        = string
+  default     = ""
+}
