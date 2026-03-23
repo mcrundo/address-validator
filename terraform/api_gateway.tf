@@ -23,6 +23,21 @@ resource "aws_apigatewayv2_route" "validate" {
   authorizer_id      = aws_apigatewayv2_authorizer.api_key.id
 }
 
+# ── Health Integration ─────────────────────────────────────────────────
+resource "aws_apigatewayv2_integration" "health" {
+  api_id                 = aws_apigatewayv2_api.this.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.health.invoke_arn
+  integration_method     = "POST"
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "health" {
+  api_id    = aws_apigatewayv2_api.this.id
+  route_key = "GET /health"
+  target    = "integrations/${aws_apigatewayv2_integration.health.id}"
+}
+
 # ── Stage ─────────────────────────────────────────────────────────────
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.this.id
