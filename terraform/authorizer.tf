@@ -42,6 +42,10 @@ resource "aws_lambda_function" "authorizer" {
     }
   }
 
+  tracing_config {
+    mode = "Active"
+  }
+
   lifecycle {
     ignore_changes = [environment]
   }
