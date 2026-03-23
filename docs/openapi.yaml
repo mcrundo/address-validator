@@ -4,7 +4,7 @@ info:
   description: |
     Validates and normalizes postal addresses using the Google Maps Address Validation API.
     Deployed as an AWS Lambda function behind API Gateway.
-  version: "0.1.0"
+  version: "0.2.0"
   license:
     name: MIT
     identifier: MIT
@@ -16,6 +16,9 @@ servers:
       api_id:
         default: placeholder
         description: API Gateway ID (set after deployment)
+
+security:
+  - apiKey: []
 
 paths:
   /health:
@@ -106,6 +109,14 @@ paths:
                   summary: Invalid API key
                   value:
                     error: "Google Maps API returned 403: Permission denied"
+        "403":
+          description: Unauthorized — missing or invalid API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: "Forbidden"
         "500":
           description: Internal server error
           content:
@@ -116,6 +127,13 @@ paths:
                 error: "Internal server error"
 
 components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: API key for authenticating requests. Stored in AWS Secrets Manager.
+
   schemas:
     ValidateRequest:
       type: object
