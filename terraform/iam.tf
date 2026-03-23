@@ -34,3 +34,9 @@ resource "aws_iam_role_policy" "lambda_logs" {
   role   = aws_iam_role.lambda_exec.id
   policy = data.aws_iam_policy_document.lambda_logs.json
 }
+
+# X-Ray Tracing
+resource "aws_iam_role_policy_attachment" "xray" {
+  role       = aws_iam_role.lambda_exec.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}

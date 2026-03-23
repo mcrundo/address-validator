@@ -17,6 +17,14 @@ resource "aws_lambda_function" "handler" {
     }
   }
 
+  dead_letter_config {
+    target_arn = aws_sqs_queue.handler_dlq.arn
+  }
+
+  tracing_config {
+    mode = "Active"
+  }
+
   lifecycle {
     ignore_changes = [environment]
   }
