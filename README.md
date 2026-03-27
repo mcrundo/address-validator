@@ -6,7 +6,7 @@ AWS Lambda service that validates and normalizes postal addresses using the [Goo
 
 ```mermaid
 flowchart LR
-    A[Rails App] -->|POST /validate| B[API Gateway<br/>HTTP API]
+    A[Rails App] -->|POST /v1/validate| B[API Gateway<br/>HTTP API]
     B --> C[Lambda<br/>Python 3.12]
     C -->|validateAddress| D[Google Maps API]
     D --> C
@@ -22,11 +22,11 @@ flowchart LR
 
 ```
 Rails App (AddressValidationJob)
-  └─ POST /validate
+  └─ POST /v1/validate
        └─ API Gateway (HTTP API)
             └─ Lambda (Python 3.12)
                  ├─ Google Maps Address Validation API
-                 └─ Returns normalized address fields
+                 └─ Returns validated address with metadata
 
 Supporting services:
   ├─ Secrets Manager → Google Maps API key + service API key
@@ -41,26 +41,26 @@ Supporting services:
 
 Full OpenAPI 3.1 spec: [`docs/openapi.yaml`](docs/openapi.yaml)
 
-### `GET /health`
+### `GET /v1/health`
 
 Health check — no auth required, no external calls.
 
 ```sh
-curl https://<api-id>.execute-api.us-east-2.amazonaws.com/health
+curl https://<api-id>.execute-api.us-east-2.amazonaws.com/v1/health
 ```
 
 ```json
 {"status": "ok"}
 ```
 
-### `POST /validate`
+### `POST /v1/validate`
 
 Validate and normalize an address.
 
 **Request:**
 
 ```sh
-curl -X POST https://<api-id>.execute-api.us-east-2.amazonaws.com/validate \
+curl -X POST https://<api-id>.execute-api.us-east-2.amazonaws.com/v1/validate \
   -H "Content-Type: application/json" \
   -d '{
     "address": {
@@ -77,12 +77,34 @@ curl -X POST https://<api-id>.execute-api.us-east-2.amazonaws.com/validate \
 
 ```json
 {
-  "line1": "1600 Amphitheatre Pkwy",
-  "line2": null,
-  "city": "Mountain View",
-  "state": "CA",
-  "postal_code": "94043-1351",
-  "country": "US"
+  "is_valid": true,
+  "address": {
+    "line1": "1600 Amphitheatre Pkwy",
+    "line2": null,
+    "city": "Mountain View",
+    "state": "CA",
+    "postal_code": "94043-1351",
+    "country": "US"
+  },
+  "validation_results": {
+    "granularity": "premise",
+    "messages": [
+      {
+        "source": "google_maps",
+        "code": "street_number.confirmed",
+        "text": "Street number confirmed",
+        "type": "info"
+      }
+    ]
+  },
+  "formatted_address": "1600 Amphitheatre Pkwy, Mountain View, CA 94043-1351, USA",
+  "original_address": {
+    "lines": ["1600 Amphitheatre Parkway"],
+    "city": "Mountain View",
+    "state": "CA",
+    "postal_code": "94043",
+    "country": "US"
+  }
 }
 ```
 
@@ -116,12 +138,22 @@ curl -X POST https://<api-id>.execute-api.us-east-2.amazonaws.com/validate \
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `line1` | `string` | Primary street address |
-| `line2` | `string \| null` | Secondary line (unit, suite) or null |
-| `city` | `string` | City or locality |
-| `state` | `string` | State abbreviation |
-| `postal_code` | `string` | ZIP code (may include +4) |
-| `country` | `string` | ISO 3166-1 alpha-2 code |
+| `is_valid` | `boolean` | Whether the address is complete and valid |
+| `address.line1` | `string` | Primary street address |
+| `address.line2` | `string \| null` | Secondary line (unit, suite) or null |
+| `address.city` | `string` | City or locality |
+| `address.state` | `string` | State abbreviation |
+| `address.postal_code` | `string` | ZIP code (may include +4) |
+| `address.country` | `string` | ISO 3166-1 alpha-2 code |
+| `validation_results.granularity` | `string` | How precisely the address resolved (e.g. `premise`, `route`) |
+| `validation_results.messages[]` | `object[]` | Per-component validation messages |
+| `validation_results.messages[].source` | `string` | Validation source (e.g. `google_maps`) |
+| `validation_results.messages[].code` | `string` | Machine-readable code (e.g. `street_number.confirmed`) |
+| `validation_results.messages[].text` | `string` | Human-readable description |
+| `validation_results.messages[].type` | `string` | Severity: `info`, `warning`, or `error` |
+| `formatted_address` | `string` | Single-line formatted address |
+| `original_address` | `object` | Echo of the original request input |
+| `original_response` | `object` | Raw response from the Google Maps Address Validation API |
 
 ## Prerequisites
 
@@ -176,7 +208,7 @@ See [`terraform/`](terraform/) for the AWS infrastructure:
 | Resource | Purpose |
 |----------|---------|
 | Lambda (x3) | Handler, authorizer, and health check functions |
-| API Gateway | HTTP API with `POST /validate` and `GET /health` routes |
+| API Gateway | HTTP API with `POST /v1/validate` and `GET /v1/health` routes |
 | IAM | Least-privilege execution role |
 | Secrets Manager | Google Maps API key + service API key (values set out-of-band) |
 | CloudWatch | Log groups + alarms (errors, latency, throttles, DLQ depth) |

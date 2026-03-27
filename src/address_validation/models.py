@@ -1,6 +1,6 @@
 """Domain models for address validation."""
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 
@@ -66,3 +66,63 @@ class NormalizedAddress:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class ValidationMessage:
+    """A single validation message derived from an address component."""
+
+    source: str
+    code: str
+    text: str
+    type: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass(frozen=True, slots=True)
+class ValidationResults:
+    """Validation metadata for an address."""
+
+    granularity: str
+    messages: list[ValidationMessage] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "granularity": self.granularity,
+            "messages": [m.to_dict() for m in self.messages],
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ParsedResult:
+    """Intermediate result from parsing a Google Maps API response."""
+
+    address: NormalizedAddress
+    is_valid: bool
+    granularity: str
+    messages: list[ValidationMessage]
+    formatted_address: str
+
+
+@dataclass(frozen=True, slots=True)
+class ValidationResponse:
+    """Top-level response envelope returned to the caller."""
+
+    is_valid: bool
+    address: NormalizedAddress
+    validation_results: ValidationResults
+    formatted_address: str
+    original_address: dict[str, Any]
+    original_response: dict[str, Any]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "is_valid": self.is_valid,
+            "address": self.address.to_dict(),
+            "validation_results": self.validation_results.to_dict(),
+            "formatted_address": self.formatted_address,
+            "original_address": self.original_address,
+            "original_response": self.original_response,
+        }

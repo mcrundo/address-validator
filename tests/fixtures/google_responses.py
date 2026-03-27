@@ -109,6 +109,118 @@ RESPONSE_MISSING_RESULT: dict[str, Any] = {
     "responseId": "no-result",
 }
 
+VALID_RESPONSE_UNCONFIRMED_COMPONENT: dict[str, Any] = {
+    "result": {
+        "verdict": {
+            "inputGranularity": "PREMISE",
+            "validationGranularity": "ROUTE",
+            "geocodeGranularity": "ROUTE",
+            "addressComplete": False,
+        },
+        "address": {
+            "formattedAddress": "Amphitheatre Pkwy, Mountain View, CA 94043, USA",
+            "postalAddress": {
+                "revision": 0,
+                "regionCode": "US",
+                "languageCode": "en",
+                "postalCode": "94043",
+                "administrativeArea": "CA",
+                "locality": "Mountain View",
+                "addressLines": ["Amphitheatre Pkwy"],
+            },
+            "addressComponents": [
+                {
+                    "componentName": {"text": "9999", "languageCode": "en"},
+                    "componentType": "street_number",
+                    "confirmationLevel": "UNCONFIRMED_BUT_PLAUSIBLE",
+                },
+                {
+                    "componentName": {"text": "Amphitheatre Pkwy", "languageCode": "en"},
+                    "componentType": "route",
+                    "confirmationLevel": "CONFIRMED",
+                },
+                {
+                    "componentName": {"text": "Mountain View", "languageCode": "en"},
+                    "componentType": "locality",
+                    "confirmationLevel": "CONFIRMED",
+                },
+                {
+                    "componentName": {"text": "CA", "languageCode": "en"},
+                    "componentType": "administrative_area_level_1",
+                    "confirmationLevel": "CONFIRMED",
+                },
+                {
+                    "componentName": {"text": "94043", "languageCode": "en"},
+                    "componentType": "postal_code",
+                    "confirmationLevel": "CONFIRMED",
+                },
+                {
+                    "componentName": {"text": "US", "languageCode": "en"},
+                    "componentType": "country",
+                    "confirmationLevel": "CONFIRMED",
+                },
+            ],
+        },
+    },
+    "responseId": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+}
+
+VALID_RESPONSE_SUSPICIOUS_COMPONENT: dict[str, Any] = {
+    "result": {
+        "verdict": {
+            "inputGranularity": "PREMISE",
+            "validationGranularity": "OTHER",
+            "geocodeGranularity": "OTHER",
+            "addressComplete": False,
+        },
+        "address": {
+            "formattedAddress": "123 Fake St, Springfield, IL 62704, USA",
+            "postalAddress": {
+                "revision": 0,
+                "regionCode": "US",
+                "languageCode": "en",
+                "postalCode": "62704",
+                "administrativeArea": "IL",
+                "locality": "Springfield",
+                "addressLines": ["123 Fake St"],
+            },
+            "addressComponents": [
+                {
+                    "componentName": {"text": "123", "languageCode": "en"},
+                    "componentType": "street_number",
+                    "confirmationLevel": "CONFIRMED",
+                },
+                {
+                    "componentName": {"text": "Fake St", "languageCode": "en"},
+                    "componentType": "route",
+                    "confirmationLevel": "UNCONFIRMED_AND_SUSPICIOUS",
+                },
+                {
+                    "componentName": {"text": "Springfield", "languageCode": "en"},
+                    "componentType": "locality",
+                    "confirmationLevel": "CONFIRMED",
+                },
+                {
+                    "componentName": {"text": "IL", "languageCode": "en"},
+                    "componentType": "administrative_area_level_1",
+                    "confirmationLevel": "CONFIRMED",
+                },
+                {
+                    "componentName": {"text": "62704", "languageCode": "en"},
+                    "componentType": "postal_code",
+                    "confirmationLevel": "CONFIRMED",
+                },
+                {
+                    "componentName": {"text": "US", "languageCode": "en"},
+                    "componentType": "country",
+                    "confirmationLevel": "CONFIRMED",
+                },
+            ],
+        },
+    },
+    "responseId": "d4e5f6a7-b8c9-0123-def0-234567890123",
+}
+
 GOOGLE_ERROR_RESPONSE_403: dict[str, Any] = {
     "error": {
         "code": 403,

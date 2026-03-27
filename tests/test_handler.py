@@ -11,6 +11,7 @@ from address_validation.handler import handler
 from tests.fixtures.google_responses import (
     VALID_RESPONSE_SINGLE_LINE,
     VALID_RESPONSE_TWO_LINES,
+    VALID_RESPONSE_UNCONFIRMED_COMPONENT,
 )
 
 
@@ -39,12 +40,12 @@ class TestHandlerSuccess:
 
         assert result["statusCode"] == 200
         body = json.loads(result["body"])
-        assert body["line1"] == "1600 Amphitheatre Pkwy"
-        assert body["line2"] is None
-        assert body["city"] == "Mountain View"
-        assert body["state"] == "CA"
-        assert body["postal_code"] == "94043-1351"
-        assert body["country"] == "US"
+        assert body["address"]["line1"] == "1600 Amphitheatre Pkwy"
+        assert body["address"]["line2"] is None
+        assert body["address"]["city"] == "Mountain View"
+        assert body["address"]["state"] == "CA"
+        assert body["address"]["postal_code"] == "94043-1351"
+        assert body["address"]["country"] == "US"
 
     @respx.mock
     def test_valid_address_two_lines(self) -> None:
@@ -69,8 +70,8 @@ class TestHandlerSuccess:
 
         assert result["statusCode"] == 200
         body = json.loads(result["body"])
-        assert body["line1"] == "350 5th Ave"
-        assert body["line2"] == "Ste 3301"
+        assert body["address"]["line1"] == "350 5th Ave"
+        assert body["address"]["line2"] == "Ste 3301"
 
     @respx.mock
     def test_response_has_json_content_type(self) -> None:
@@ -81,6 +82,105 @@ class TestHandlerSuccess:
         result = handler(_make_event({"address": {"lines": ["123 Main St"]}}), None)
 
         assert result["headers"]["Content-Type"] == "application/json"
+
+
+class TestHandlerResponseEnvelope:
+    @respx.mock
+    def test_is_valid_true(self) -> None:
+        respx.post(GOOGLE_API_URL).mock(
+            return_value=httpx.Response(200, json=VALID_RESPONSE_SINGLE_LINE)
+        )
+
+        result = handler(_make_event({"address": {"lines": ["1600 Amphitheatre Parkway"]}}), None)
+
+        body = json.loads(result["body"])
+        assert body["is_valid"] is True
+
+    @respx.mock
+    def test_is_valid_false(self) -> None:
+        respx.post(GOOGLE_API_URL).mock(
+            return_value=httpx.Response(200, json=VALID_RESPONSE_UNCONFIRMED_COMPONENT)
+        )
+
+        result = handler(_make_event({"address": {"lines": ["9999 Amphitheatre Parkway"]}}), None)
+
+        body = json.loads(result["body"])
+        assert body["is_valid"] is False
+
+    @respx.mock
+    def test_formatted_address(self) -> None:
+        respx.post(GOOGLE_API_URL).mock(
+            return_value=httpx.Response(200, json=VALID_RESPONSE_SINGLE_LINE)
+        )
+
+        result = handler(_make_event({"address": {"lines": ["1600 Amphitheatre Parkway"]}}), None)
+
+        body = json.loads(result["body"])
+        assert (
+            body["formatted_address"]
+            == "1600 Amphitheatre Pkwy, Mountain View, CA 94043-1351, USA"
+        )
+
+    @respx.mock
+    def test_validation_results_present(self) -> None:
+        respx.post(GOOGLE_API_URL).mock(
+            return_value=httpx.Response(200, json=VALID_RESPONSE_SINGLE_LINE)
+        )
+
+        result = handler(_make_event({"address": {"lines": ["1600 Amphitheatre Parkway"]}}), None)
+
+        body = json.loads(result["body"])
+        assert "validation_results" in body
+        assert body["validation_results"]["granularity"] == "premise"
+        assert isinstance(body["validation_results"]["messages"], list)
+        assert len(body["validation_results"]["messages"]) > 0
+
+    @respx.mock
+    def test_original_address_echoed(self) -> None:
+        respx.post(GOOGLE_API_URL).mock(
+            return_value=httpx.Response(200, json=VALID_RESPONSE_SINGLE_LINE)
+        )
+
+        input_address = {
+            "lines": ["1600 Amphitheatre Parkway"],
+            "city": "Mountain View",
+            "state": "CA",
+            "postal_code": "94043",
+            "country": "US",
+        }
+        result = handler(_make_event({"address": input_address}), None)
+
+        body = json.loads(result["body"])
+        assert body["original_address"] == input_address
+
+    @respx.mock
+    def test_original_response_included(self) -> None:
+        respx.post(GOOGLE_API_URL).mock(
+            return_value=httpx.Response(200, json=VALID_RESPONSE_SINGLE_LINE)
+        )
+
+        result = handler(_make_event({"address": {"lines": ["1600 Amphitheatre Parkway"]}}), None)
+
+        body = json.loads(result["body"])
+        assert body["original_response"] == VALID_RESPONSE_SINGLE_LINE
+
+    @respx.mock
+    def test_all_top_level_keys_present(self) -> None:
+        respx.post(GOOGLE_API_URL).mock(
+            return_value=httpx.Response(200, json=VALID_RESPONSE_SINGLE_LINE)
+        )
+
+        result = handler(_make_event({"address": {"lines": ["123 Main St"]}}), None)
+
+        body = json.loads(result["body"])
+        assert set(body.keys()) == {
+            "is_valid",
+            "address",
+            "validation_results",
+            "formatted_address",
+            "original_address",
+            "original_response",
+        }
 
 
 class TestHandlerInputValidation:

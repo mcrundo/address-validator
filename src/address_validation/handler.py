@@ -7,7 +7,7 @@ from typing import Any
 
 from address_validation.client import validate_address
 from address_validation.exceptions import AddressValidationError, InvalidInputError
-from address_validation.models import AddressInput
+from address_validation.models import AddressInput, ValidationResponse, ValidationResults
 from address_validation.parser import parse_response
 
 logger = logging.getLogger(__name__)
@@ -34,9 +34,29 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         except ValueError as exc:
             raise InvalidInputError(str(exc)) from exc
         google_response = validate_address(address_input, api_key=api_key)
-        normalized = parse_response(google_response)
+        parsed = parse_response(google_response)
 
-        return _response(200, normalized.to_dict())
+        original_address = {
+            "lines": address_input.lines,
+            "city": address_input.city,
+            "state": address_input.state,
+            "postal_code": address_input.postal_code,
+            "country": address_input.country,
+        }
+
+        response = ValidationResponse(
+            is_valid=parsed.is_valid,
+            address=parsed.address,
+            validation_results=ValidationResults(
+                granularity=parsed.granularity,
+                messages=parsed.messages,
+            ),
+            formatted_address=parsed.formatted_address,
+            original_address=original_address,
+            original_response=google_response,
+        )
+
+        return _response(200, response.to_dict())
 
     except AddressValidationError as exc:
         logger.warning("Validation error: %s", exc)
