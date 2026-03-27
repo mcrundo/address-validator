@@ -45,6 +45,50 @@ jobs:
       - name: Pytest
         run: pytest --cov=address_validation --cov-report=term-missing
 
+  smoke-test:
+    name: Smoke test (Docker)
+    needs: check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start Lambda container
+        run: |
+          echo "GOOGLE_MAPS_API_KEY=ci-dummy-key" > .env
+          docker compose up -d --build --wait
+
+      - name: Invoke Lambda
+        run: |
+          RESPONSE=$(curl -sf -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "body": "{\"address\":{\"lines\":[\"1600 Amphitheatre Parkway\"],\"city\":\"Mountain View\",\"state\":\"CA\",\"postal_code\":\"94043\",\"country\":\"US\"}}",
+              "isBase64Encoded": false
+            }')
+
+          echo "Response: $RESPONSE"
+
+          echo "$RESPONSE" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          assert 'statusCode' in data, f'Missing statusCode: {data}'
+          body = json.loads(data['body'])
+          # With a dummy API key, Google rejects -> 502
+          # This validates the Lambda boots, parses input, and returns structured JSON
+          assert data['statusCode'] in (200, 502), f'Unexpected status: {data[\"statusCode\"]}'
+          if data['statusCode'] == 200:
+              for key in ('is_valid', 'address', 'validation_results', 'formatted_address', 'original_address', 'original_response'):
+                  assert key in body, f'Missing {key} in response body'
+          else:
+              assert 'error' in body, f'Missing error in response body'
+          print(f'Smoke test passed (status={data[\"statusCode\"]})')
+          "
+
+      - name: Stop container
+        if: always()
+        run: docker compose down
+
   terraform-validate:
     name: Terraform validate
     runs-on: ubuntu-latest

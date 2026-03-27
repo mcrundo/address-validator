@@ -78,7 +78,7 @@ jobs:
       - name: Smoke test
         working-directory: .
         run: |
-          RESPONSE=$(curl -sf -X POST "${{ steps.api_url.outputs.url }}/validate" \
+          RESPONSE=$(curl -sf -X POST "${{ steps.api_url.outputs.url }}/v1/validate" \
             -H "Content-Type: application/json" \
             -H "x-api-key: ${{ steps.api_key.outputs.key }}" \
             -d '{
@@ -96,8 +96,11 @@ jobs:
           echo "$RESPONSE" | python -c "
           import json, sys
           data = json.load(sys.stdin)
-          assert 'line1' in data, f'Missing line1 in response: {data}'
-          assert 'city' in data, f'Missing city in response: {data}'
-          assert data['country'] == 'US', f'Unexpected country: {data}'
+          assert data['is_valid'] is True, f'Expected is_valid=True: {data}'
+          assert data['address']['line1'], f'Missing address.line1: {data}'
+          assert data['address']['country'] == 'US', f'Unexpected country: {data}'
+          assert 'validation_results' in data, f'Missing validation_results: {data}'
+          assert 'original_address' in data, f'Missing original_address: {data}'
+          assert 'original_response' in data, f'Missing original_response: {data}'
           print('Smoke test passed.')
           "
