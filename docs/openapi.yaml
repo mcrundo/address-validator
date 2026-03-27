@@ -4,7 +4,7 @@ info:
   description: |
     Validates and normalizes postal addresses using the Google Maps Address Validation API.
     Deployed as an AWS Lambda function behind API Gateway.
-  version: "0.2.0"
+  version: "1.0.0"
   license:
     name: MIT
     identifier: MIT
@@ -21,7 +21,7 @@ security:
   - apiKey: []
 
 paths:
-  /health:
+  /v1/health:
     get:
       summary: Health check
       description: Returns 200 OK if the service is running. No auth required, no external calls.
@@ -40,12 +40,12 @@ paths:
               example:
                 status: "ok"
 
-  /validate:
+  /v1/validate:
     post:
       summary: Validate and normalize an address
       description: |
         Accepts a raw address, validates it against the Google Maps Address Validation API,
-        and returns a normalized, structured address.
+        and returns a normalized, structured address with validation metadata.
       operationId: validateAddress
       requestBody:
         required: true
@@ -67,14 +67,35 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/NormalizedAddress"
+                $ref: "#/components/schemas/ValidateResponse"
               example:
-                line1: "1600 Amphitheatre Pkwy"
-                line2: null
-                city: "Mountain View"
-                state: "CA"
-                postal_code: "94043-1351"
-                country: "US"
+                is_valid: true
+                address:
+                  line1: "1600 Amphitheatre Pkwy"
+                  line2: null
+                  city: "Mountain View"
+                  state: "CA"
+                  postal_code: "94043-1351"
+                  country: "US"
+                validation_results:
+                  granularity: "premise"
+                  messages:
+                    - source: "google_maps"
+                      code: "street_number.confirmed"
+                      text: "Street number confirmed"
+                      type: "info"
+                    - source: "google_maps"
+                      code: "route.confirmed"
+                      text: "Route confirmed"
+                      type: "info"
+                formatted_address: "1600 Amphitheatre Pkwy, Mountain View, CA 94043-1351, USA"
+                original_address:
+                  lines:
+                    - "1600 Amphitheatre Parkway"
+                  city: "Mountain View"
+                  state: "CA"
+                  postal_code: "94043"
+                  country: "US"
         "400":
           description: Invalid request (missing or malformed input)
           content:
@@ -201,6 +222,71 @@ components:
         country:
           type: string
           description: ISO 3166-1 alpha-2 country code
+
+    ValidationMessage:
+      type: object
+      required:
+        - source
+        - code
+        - text
+        - type
+      properties:
+        source:
+          type: string
+          description: Validation source (e.g. "google_maps")
+        code:
+          type: string
+          description: Machine-readable code (e.g. "street_number.confirmed")
+        text:
+          type: string
+          description: Human-readable description
+        type:
+          type: string
+          enum: ["info", "warning", "error"]
+          description: Severity level
+
+    ValidationResults:
+      type: object
+      required:
+        - granularity
+        - messages
+      properties:
+        granularity:
+          type: string
+          description: |
+            How precisely the address was resolved. Lowercased from Google's
+            validationGranularity (e.g. "premise", "sub_premise", "route", "unknown").
+        messages:
+          type: array
+          items:
+            $ref: "#/components/schemas/ValidationMessage"
+          description: Per-component validation messages
+
+    ValidateResponse:
+      type: object
+      required:
+        - is_valid
+        - address
+        - validation_results
+        - formatted_address
+        - original_address
+        - original_response
+      properties:
+        is_valid:
+          type: boolean
+          description: Whether the address is considered complete and valid
+        address:
+          $ref: "#/components/schemas/NormalizedAddress"
+        validation_results:
+          $ref: "#/components/schemas/ValidationResults"
+        formatted_address:
+          type: string
+          description: Single-line formatted address from Google Maps
+        original_address:
+          $ref: "#/components/schemas/AddressInput"
+        original_response:
+          type: object
+          description: Raw response from the Google Maps Address Validation API
 
     Error:
       type: object

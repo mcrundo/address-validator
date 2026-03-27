@@ -16,7 +16,7 @@ resource "aws_apigatewayv2_integration" "handler" {
 # ── Route ─────────────────────────────────────────────────────────────
 resource "aws_apigatewayv2_route" "validate" {
   api_id    = aws_apigatewayv2_api.this.id
-  route_key = "POST /validate"
+  route_key = "POST /v1/validate"
   target    = "integrations/${aws_apigatewayv2_integration.handler.id}"
 
   authorization_type = "CUSTOM"
@@ -34,7 +34,7 @@ resource "aws_apigatewayv2_integration" "health" {
 
 resource "aws_apigatewayv2_route" "health" {
   api_id    = aws_apigatewayv2_api.this.id
-  route_key = "GET /health"
+  route_key = "GET /v1/health"
   target    = "integrations/${aws_apigatewayv2_integration.health.id}"
 }
 
