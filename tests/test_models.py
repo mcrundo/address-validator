@@ -32,7 +32,7 @@ class TestAddressInput:
         address = AddressInput.from_dict({"lines": ["123 Main St"]})
         assert address.lines == ["123 Main St"]
         assert address.city == ""
-        assert address.country == "US"
+        assert address.country == ""
 
     def test_from_dict_strips_empty_lines(self) -> None:
         address = AddressInput.from_dict({"lines": ["123 Main St", "", "  "]})
@@ -83,7 +83,6 @@ class TestAddressInput:
         assert request == {
             "address": {
                 "addressLines": ["123 Main St"],
-                "regionCode": "US",
             },
         }
 
