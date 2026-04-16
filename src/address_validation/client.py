@@ -3,19 +3,26 @@
 import httpx
 
 from address_validation.exceptions import UpstreamError
-from address_validation.models import AddressInput
+from address_validation.models import AddressInput, RequestOptions
 
 GOOGLE_API_URL = "https://addressvalidation.googleapis.com/v1:validateAddress"
 DEFAULT_TIMEOUT = 10.0
 
 
-def validate_address(address: AddressInput, *, api_key: str) -> dict[str, object]:
+def validate_address(
+    address: AddressInput,
+    *,
+    api_key: str,
+    options: RequestOptions | None = None,
+) -> dict[str, object]:
     """Call the Google Maps Address Validation API.
 
     Returns the raw JSON response body on success.
     Raises UpstreamError on any failure.
     """
     body = address.to_google_request()
+    if options:
+        body.update(options.to_google_params())
 
     try:
         response = httpx.post(

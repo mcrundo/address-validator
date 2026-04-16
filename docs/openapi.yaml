@@ -61,6 +61,8 @@ paths:
                 state: "CA"
                 postal_code: "94043"
                 country: "US"
+              options:
+                enable_usps_cass: true
       responses:
         "200":
           description: Address validated and normalized successfully
@@ -163,6 +165,32 @@ components:
       properties:
         address:
           $ref: "#/components/schemas/AddressInput"
+        options:
+          $ref: "#/components/schemas/RequestOptions"
+
+    RequestOptions:
+      type: object
+      description: Optional parameters forwarded to the Google Maps Address Validation API.
+      properties:
+        enable_usps_cass:
+          type: boolean
+          default: false
+          description: |
+            Enable USPS CASS (Coding Accuracy Support System) processing.
+            Only applicable to US addresses. Provides enhanced postal data
+            including delivery point validation and carrier route information.
+        previous_response_id:
+          type: string
+          default: ""
+          description: |
+            The responseId from a previous validation call. When set, the API
+            uses the previous response to improve accuracy for follow-up requests.
+        session_token:
+          type: string
+          default: ""
+          description: |
+            An opaque session token for grouping related validation requests.
+            Used by Google for analytics and rate limiting purposes.
 
     AddressInput:
       type: object

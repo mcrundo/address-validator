@@ -6,7 +6,7 @@ import respx
 
 from address_validation.client import GOOGLE_API_URL, validate_address
 from address_validation.exceptions import UpstreamError
-from address_validation.models import AddressInput
+from address_validation.models import AddressInput, RequestOptions
 from tests.fixtures.google_responses import (
     VALID_RESPONSE_SINGLE_LINE,
 )
@@ -76,3 +76,33 @@ class TestValidateAddress:
 
         with pytest.raises(UpstreamError, match="request failed"):
             validate_address(SAMPLE_ADDRESS, api_key=TEST_API_KEY)
+
+    @respx.mock
+    def test_sends_options_in_request_body(self) -> None:
+        import json
+
+        route = respx.post(GOOGLE_API_URL).mock(
+            return_value=httpx.Response(200, json=VALID_RESPONSE_SINGLE_LINE)
+        )
+
+        options = RequestOptions(enable_usps_cass=True, session_token="tok-1")
+        validate_address(SAMPLE_ADDRESS, api_key=TEST_API_KEY, options=options)
+
+        body = json.loads(route.calls.last.request.content)
+        assert body["enableUspsCass"] is True
+        assert body["sessionToken"] == "tok-1"
+        assert "previousResponseId" not in body
+        assert "address" in body
+
+    @respx.mock
+    def test_no_options_sends_address_only(self) -> None:
+        import json
+
+        route = respx.post(GOOGLE_API_URL).mock(
+            return_value=httpx.Response(200, json=VALID_RESPONSE_SINGLE_LINE)
+        )
+
+        validate_address(SAMPLE_ADDRESS, api_key=TEST_API_KEY)
+
+        body = json.loads(route.calls.last.request.content)
+        assert set(body.keys()) == {"address"}

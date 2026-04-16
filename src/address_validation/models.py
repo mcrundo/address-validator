@@ -54,6 +54,53 @@ class AddressInput:
 
 
 @dataclass(frozen=True, slots=True)
+class RequestOptions:
+    """Optional parameters forwarded to the Google Maps Address Validation API."""
+
+    enable_usps_cass: bool = False
+    previous_response_id: str = ""
+    session_token: str = ""
+
+    def to_google_params(self) -> dict[str, Any]:
+        """Build the Google-level request fields (merged alongside ``address``)."""
+        params: dict[str, Any] = {}
+        if self.enable_usps_cass:
+            params["enableUspsCass"] = True
+        if self.previous_response_id:
+            params["previousResponseId"] = self.previous_response_id
+        if self.session_token:
+            params["sessionToken"] = self.session_token
+        return params
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "RequestOptions":
+        """Parse from the incoming ``options`` payload.
+
+        Raises ValueError for invalid types.
+        """
+        if not isinstance(data, dict):
+            raise ValueError("options must be an object")
+
+        enable_usps_cass = data.get("enable_usps_cass", False)
+        if not isinstance(enable_usps_cass, bool):
+            raise ValueError("options.enable_usps_cass must be a boolean")
+
+        previous_response_id = data.get("previous_response_id", "")
+        if not isinstance(previous_response_id, str):
+            raise ValueError("options.previous_response_id must be a string")
+
+        session_token = data.get("session_token", "")
+        if not isinstance(session_token, str):
+            raise ValueError("options.session_token must be a string")
+
+        return cls(
+            enable_usps_cass=enable_usps_cass,
+            previous_response_id=previous_response_id,
+            session_token=session_token,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class NormalizedAddress:
     """Validated and normalized address returned to the caller."""
 

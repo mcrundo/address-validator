@@ -5,6 +5,7 @@ import pytest
 from address_validation.models import (
     AddressInput,
     NormalizedAddress,
+    RequestOptions,
     ValidationMessage,
     ValidationResponse,
     ValidationResults,
@@ -85,6 +86,69 @@ class TestAddressInput:
                 "regionCode": "US",
             },
         }
+
+
+class TestRequestOptions:
+    def test_from_dict_defaults(self) -> None:
+        options = RequestOptions.from_dict({})
+        assert options.enable_usps_cass is False
+        assert options.previous_response_id == ""
+        assert options.session_token == ""
+
+    def test_from_dict_all_fields(self) -> None:
+        options = RequestOptions.from_dict(
+            {
+                "enable_usps_cass": True,
+                "previous_response_id": "resp-123",
+                "session_token": "token-abc",
+            }
+        )
+        assert options.enable_usps_cass is True
+        assert options.previous_response_id == "resp-123"
+        assert options.session_token == "token-abc"
+
+    def test_from_dict_not_a_dict(self) -> None:
+        with pytest.raises(ValueError, match="options must be an object"):
+            RequestOptions.from_dict("bad")  # type: ignore[arg-type]
+
+    def test_from_dict_invalid_enable_usps_cass_type(self) -> None:
+        with pytest.raises(ValueError, match="enable_usps_cass must be a boolean"):
+            RequestOptions.from_dict({"enable_usps_cass": "yes"})
+
+    def test_from_dict_invalid_previous_response_id_type(self) -> None:
+        with pytest.raises(ValueError, match="previous_response_id must be a string"):
+            RequestOptions.from_dict({"previous_response_id": 123})
+
+    def test_from_dict_invalid_session_token_type(self) -> None:
+        with pytest.raises(ValueError, match="session_token must be a string"):
+            RequestOptions.from_dict({"session_token": True})
+
+    def test_from_dict_ignores_unknown_fields(self) -> None:
+        options = RequestOptions.from_dict({"enable_usps_cass": True, "unknown_field": "ignored"})
+        assert options.enable_usps_cass is True
+
+    def test_to_google_params_empty(self) -> None:
+        options = RequestOptions()
+        assert options.to_google_params() == {}
+
+    def test_to_google_params_all_set(self) -> None:
+        options = RequestOptions(
+            enable_usps_cass=True,
+            previous_response_id="resp-123",
+            session_token="token-abc",
+        )
+        assert options.to_google_params() == {
+            "enableUspsCass": True,
+            "previousResponseId": "resp-123",
+            "sessionToken": "token-abc",
+        }
+
+    def test_to_google_params_partial(self) -> None:
+        options = RequestOptions(enable_usps_cass=True)
+        params = options.to_google_params()
+        assert params == {"enableUspsCass": True}
+        assert "previousResponseId" not in params
+        assert "sessionToken" not in params
 
 
 class TestNormalizedAddress:

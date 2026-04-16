@@ -183,6 +183,71 @@ class TestHandlerResponseEnvelope:
         }
 
 
+class TestHandlerOptions:
+    @respx.mock
+    def test_options_passed_to_google(self) -> None:
+        route = respx.post(GOOGLE_API_URL).mock(
+            return_value=httpx.Response(200, json=VALID_RESPONSE_SINGLE_LINE)
+        )
+
+        result = handler(
+            _make_event(
+                {
+                    "address": {"lines": ["123 Main St"]},
+                    "options": {"enable_usps_cass": True},
+                }
+            ),
+            None,
+        )
+
+        assert result["statusCode"] == 200
+        body = json.loads(route.calls.last.request.content)
+        assert body["enableUspsCass"] is True
+
+    @respx.mock
+    def test_no_options_still_works(self) -> None:
+        respx.post(GOOGLE_API_URL).mock(
+            return_value=httpx.Response(200, json=VALID_RESPONSE_SINGLE_LINE)
+        )
+
+        result = handler(
+            _make_event({"address": {"lines": ["123 Main St"]}}),
+            None,
+        )
+
+        assert result["statusCode"] == 200
+
+    def test_invalid_options_type(self) -> None:
+        result = handler(
+            _make_event(
+                {
+                    "address": {"lines": ["123 Main St"]},
+                    "options": "bad",
+                }
+            ),
+            None,
+        )
+
+        assert result["statusCode"] == 400
+        body = json.loads(result["body"])
+        assert "options must be an object" in body["error"]
+
+    def test_invalid_option_value_type(self) -> None:
+        result = handler(
+            _make_event(
+                {
+                    "address": {"lines": ["123 Main St"]},
+                    "options": {"enable_usps_cass": "yes"},
+                }
+            ),
+            None,
+        )
+
+        assert result["statusCode"] == 400
+        body = json.loads(result["body"])
+        assert "enable_usps_cass" in body["error"]
+
+
 class TestHandlerInputValidation:
     def test_empty_body(self) -> None:
         result = handler({"body": "", "isBase64Encoded": False}, None)

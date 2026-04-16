@@ -7,7 +7,12 @@ from typing import Any
 
 from address_validation.client import validate_address
 from address_validation.exceptions import AddressValidationError, InvalidInputError
-from address_validation.models import AddressInput, ValidationResponse, ValidationResults
+from address_validation.models import (
+    AddressInput,
+    RequestOptions,
+    ValidationResponse,
+    ValidationResults,
+)
 from address_validation.parser import parse_response
 
 logger = logging.getLogger(__name__)
@@ -31,9 +36,12 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
 
         try:
             address_input = AddressInput.from_dict(address_data)
+            options_data = body.get("options")
+            options = RequestOptions.from_dict(options_data) if options_data is not None else None
         except ValueError as exc:
             raise InvalidInputError(str(exc)) from exc
-        google_response = validate_address(address_input, api_key=api_key)
+
+        google_response = validate_address(address_input, api_key=api_key, options=options)
         parsed = parse_response(google_response)
 
         original_address = {
