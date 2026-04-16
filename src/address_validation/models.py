@@ -12,7 +12,7 @@ class AddressInput:
     city: str = ""
     state: str = ""
     postal_code: str = ""
-    country: str = "US"
+    country: str = ""
 
     def to_google_request(self) -> dict[str, Any]:
         """Build the Google Maps Address Validation API request body."""
@@ -49,7 +49,7 @@ class AddressInput:
             city=str(data.get("city", "")),
             state=str(data.get("state", "")),
             postal_code=str(data.get("postal_code", "")),
-            country=str(data.get("country", "US")),
+            country=str(data.get("country", "")),
         )
 
 
