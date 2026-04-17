@@ -6,8 +6,12 @@ from address_validation.authorizer import handler
 
 
 @pytest.fixture(autouse=True)
-def _set_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("API_KEY", "test-secret-key-abc123")
+def _set_secret(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("API_KEY_SECRET_NAME", "address-validation/test/api-key")
+    monkeypatch.setattr(
+        "address_validation.authorizer.get_secret",
+        lambda _name: "test-secret-key-abc123",
+    )
 
 
 def _make_event(api_key: str | None = None) -> dict:
@@ -45,8 +49,16 @@ class TestAuthorizerRejection:
         result = handler({"headers": {}}, None)
         assert result["isAuthorized"] is False
 
-    def test_missing_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv("API_KEY")
+    def test_missing_secret_name_env_var(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("API_KEY_SECRET_NAME")
+        result = handler(_make_event("test-secret-key-abc123"), None)
+        assert result["isAuthorized"] is False
+
+    def test_secret_fetch_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def raise_(_name: str) -> str:
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr("address_validation.authorizer.get_secret", raise_)
         result = handler(_make_event("test-secret-key-abc123"), None)
         assert result["isAuthorized"] is False
 

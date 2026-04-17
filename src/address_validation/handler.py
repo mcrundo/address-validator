@@ -14,6 +14,7 @@ from address_validation.models import (
     ValidationResults,
 )
 from address_validation.parser import parse_response
+from address_validation.secrets import get_secret
 
 logger = logging.getLogger(__name__)
 logger.setLevel(os.environ.get("LOG_LEVEL", "INFO"))
@@ -25,9 +26,12 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
     Expects an API Gateway v2 (HTTP API) proxy event with a JSON body.
     """
     try:
-        api_key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
-        if not api_key:
-            raise AddressValidationError("GOOGLE_MAPS_API_KEY is not configured", status_code=500)
+        secret_name = os.environ.get("GOOGLE_MAPS_API_KEY_SECRET_NAME", "")
+        if not secret_name:
+            raise AddressValidationError(
+                "GOOGLE_MAPS_API_KEY_SECRET_NAME is not configured", status_code=500
+            )
+        api_key = get_secret(secret_name)
 
         body = _parse_body(event)
         address_data = body.get("address")

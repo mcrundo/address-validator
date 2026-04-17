@@ -186,12 +186,14 @@ pytest                         # tests
 
 ## Local invocation
 
-Run the Lambda locally using the AWS Lambda Runtime Interface Emulator:
+Run the Lambda locally using the AWS Lambda Runtime Interface Emulator. A `moto` sidecar stands in for AWS Secrets Manager so the boto3 code path runs the same as in production — no real AWS credentials required.
 
 ```sh
-cp .env.example .env  # add your API key
+cp .env.example .env  # add your Google Maps API key
 docker compose up --build
 ```
+
+On startup, docker-compose seeds the fake Secrets Manager with your Google Maps key from `.env` and a placeholder service API key. The Lambda container points boto3 at moto via `AWS_ENDPOINT_URL_SECRETS_MANAGER`.
 
 Then invoke:
 
@@ -235,7 +237,10 @@ PRs run `terraform plan` and post the output as a comment.
      --versioning-configuration Status=Enabled --region us-east-2 --profile aws
    ```
 
-2. **Set secrets after first deploy:**
+2. **Populate the secrets after first deploy:**
+
+   Terraform creates empty Secrets Manager entries; the Lambdas fetch their values from Secrets Manager at runtime. Seed the values once per environment:
+
    ```sh
    # Google Maps API key
    aws secretsmanager put-secret-value \
@@ -250,20 +255,7 @@ PRs run `terraform plan` and post the output as a comment.
      --region us-east-2 --profile aws
    ```
 
-3. **Set Lambda environment variables:**
-   ```sh
-   # Handler
-   aws lambda update-function-configuration \
-     --function-name address-validation-handler-dev \
-     --environment "Variables={GOOGLE_MAPS_API_KEY=<key>,LOG_LEVEL=INFO}" \
-     --region us-east-2 --profile aws
-
-   # Authorizer
-   aws lambda update-function-configuration \
-     --function-name address-validation-authorizer-dev \
-     --environment "Variables={API_KEY=<key>,LOG_LEVEL=INFO}" \
-     --region us-east-2 --profile aws
-   ```
+   Rotating a secret takes effect on the next Lambda cold start (values are cached for the life of the container).
 
 ### Monitoring
 

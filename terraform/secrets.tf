@@ -4,7 +4,8 @@ resource "aws_secretsmanager_secret" "google_maps_api_key" {
   description = "Google Maps Address Validation API key"
 }
 
-# Value is set out-of-band:
+# The secret value is set out-of-band. The handler Lambda fetches it at
+# runtime via the AWS Secrets Manager API:
 #   aws secretsmanager put-secret-value \
 #     --secret-id address-validation/dev/google-maps-api-key \
 #     --secret-string "<your-google-maps-api-key>" \

@@ -26,7 +26,11 @@ def _make_event(body: dict | str | None = None) -> dict:
 
 @pytest.fixture(autouse=True)
 def _set_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("GOOGLE_MAPS_API_KEY", "test-key")
+    monkeypatch.setenv(
+        "GOOGLE_MAPS_API_KEY_SECRET_NAME",
+        "address-validation/test/google-maps-api-key",
+    )
+    monkeypatch.setattr("address_validation.handler.get_secret", lambda _name: "test-key")
 
 
 class TestHandlerSuccess:
@@ -310,14 +314,24 @@ class TestHandlerInputValidation:
 
 
 class TestHandlerErrorHandling:
-    def test_missing_api_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv("GOOGLE_MAPS_API_KEY")
+    def test_missing_secret_name(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("GOOGLE_MAPS_API_KEY_SECRET_NAME")
 
         result = handler(_make_event({"address": {"lines": ["123 Main St"]}}), None)
 
         assert result["statusCode"] == 500
         body = json.loads(result["body"])
-        assert "GOOGLE_MAPS_API_KEY" in body["error"]
+        assert "GOOGLE_MAPS_API_KEY_SECRET_NAME" in body["error"]
+
+    def test_secret_fetch_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def raise_(_name: str) -> str:
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr("address_validation.handler.get_secret", raise_)
+
+        result = handler(_make_event({"address": {"lines": ["123 Main St"]}}), None)
+
+        assert result["statusCode"] == 500
 
     @respx.mock
     def test_upstream_timeout(self) -> None:

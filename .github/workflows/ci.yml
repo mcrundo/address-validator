@@ -56,7 +56,7 @@ jobs:
       - name: Start Lambda container
         run: |
           echo "GOOGLE_MAPS_API_KEY=ci-dummy-key" > .env
-          docker compose up -d --build --wait
+          docker compose up -d --build --wait lambda
 
       - name: Invoke Lambda
         run: |
