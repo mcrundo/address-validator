@@ -14,7 +14,7 @@ concurrency:
 
 env:
   AWS_REGION: us-east-2
-  TERRAFORM_VERSION: "1.5"
+  TERRAFORM_VERSION: "1.10"
   PYTHON_VERSION: "3.12"
 
 jobs:
