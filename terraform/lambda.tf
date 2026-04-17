@@ -12,8 +12,8 @@ resource "aws_lambda_function" "handler" {
 
   environment {
     variables = {
-      GOOGLE_MAPS_API_KEY = "" # Set after deploy via Secrets Manager
-      LOG_LEVEL           = "INFO"
+      GOOGLE_MAPS_API_KEY_SECRET_NAME = aws_secretsmanager_secret.google_maps_api_key.name
+      LOG_LEVEL                       = "INFO"
     }
   }
 
@@ -23,10 +23,6 @@ resource "aws_lambda_function" "handler" {
 
   tracing_config {
     mode = "Active"
-  }
-
-  lifecycle {
-    ignore_changes = [environment]
   }
 
   depends_on = [aws_cloudwatch_log_group.handler]

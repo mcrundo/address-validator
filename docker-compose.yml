@@ -1,6 +1,40 @@
 services:
+  moto:
+    image: motoserver/moto:latest
+    environment:
+      MOTO_PORT: "5000"
+
+  seed-secrets:
+    image: amazon/aws-cli:latest
+    depends_on: [moto]
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-2
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-dummy}
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        until aws --endpoint-url=http://moto:5000 secretsmanager list-secrets >/dev/null 2>&1; do sleep 0.2; done
+        aws --endpoint-url=http://moto:5000 secretsmanager create-secret \
+          --name address-validation/dev/google-maps-api-key \
+          --secret-string "$$GOOGLE_MAPS_API_KEY"
+        aws --endpoint-url=http://moto:5000 secretsmanager create-secret \
+          --name address-validation/dev/api-key \
+          --secret-string "local-dev-api-key"
+
   lambda:
     build: .
     ports:
       - "9000:8080"
-    env_file: .env
+    depends_on:
+      seed-secrets:
+        condition: service_completed_successfully
+    environment:
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-2
+      AWS_ENDPOINT_URL_SECRETS_MANAGER: http://moto:5000
+      GOOGLE_MAPS_API_KEY_SECRET_NAME: address-validation/dev/google-maps-api-key
+      API_KEY_SECRET_NAME: address-validation/dev/api-key

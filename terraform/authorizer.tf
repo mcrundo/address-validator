@@ -4,7 +4,8 @@ resource "aws_secretsmanager_secret" "api_key" {
   description = "API key for authenticating requests to the address validation service"
 }
 
-# Value is set out-of-band:
+# The secret value is set out-of-band. The authorizer Lambda fetches it at
+# runtime via the AWS Secrets Manager API:
 #   aws secretsmanager put-secret-value \
 #     --secret-id address-validation/dev/api-key \
 #     --secret-string "$(openssl rand -hex 32)" \
@@ -37,17 +38,13 @@ resource "aws_lambda_function" "authorizer" {
 
   environment {
     variables = {
-      API_KEY   = "" # Set after deploy — see comment above
-      LOG_LEVEL = "INFO"
+      API_KEY_SECRET_NAME = aws_secretsmanager_secret.api_key.name
+      LOG_LEVEL           = "INFO"
     }
   }
 
   tracing_config {
     mode = "Active"
-  }
-
-  lifecycle {
-    ignore_changes = [environment]
   }
 
   depends_on = [aws_cloudwatch_log_group.authorizer]
