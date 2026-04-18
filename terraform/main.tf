@@ -18,4 +18,13 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
+
+  default_tags {
+    tags = {
+      Project     = "address-validation"
+      Environment = var.environment
+      ManagedBy   = "terraform"
+      Repository  = "address-validation-service"
+    }
+  }
 }
